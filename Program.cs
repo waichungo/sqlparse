@@ -67,7 +67,8 @@ void ParseSQL()
 
                 var index=0;
                 while(index<(valueCollection.Length-1)){
-                    var row=valuesString.Substring(valueCollection[index],(valueCollection[index+1]-3)- index);
+                    var row=valuesString.Substring(valueCollection[index],(valueCollection[index+1]-3)- valueCollection[index]);
+                    File.AppendAllText("parse.txt",row);
                     values.Add(row);                   
                     index++;
                 }
