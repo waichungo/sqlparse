@@ -22,6 +22,7 @@ void Start()
 
     }
 }
+
 void ParseSQL()
 {
     using var file = File.OpenRead(@"H:\libgendb\libgen_compact.sql");
@@ -30,7 +31,7 @@ void ParseSQL()
 
     var parsed = new Dictionary<string, Dictionary<string, object>>();
     var table = "";
-    var rgx = new Regex(@"INSERT INTO `(?<table>\w)+`\s+\((?<keys>.*)+\)\s+VALUES \((?<values>.*)+\);");
+    var rgx = new Regex(@"\),\(\d+,");
     while ((line = stream.ReadLine()) != null)
     {
         //INSERT INTO `updated` () VALUES ()
@@ -52,7 +53,25 @@ void ParseSQL()
             // var match3 = rgx.IsMatch(line);
             table=line.Substring(tableStart+1,(tableEnd-1)-tableStart);
             var keys=Regex.Split( line.Substring(keyStart+1,keyEnd-(keyStart+1)),",{1,}").Select(e=>e.Replace("`","")).ToList();
-            var values=Regex.Split( line.Substring(valStart+1,valEnd-(valStart+1)),",{1,1}").Where(e=>e!="''").ToList();
+
+//),(1579,
+
+            var valuesString=line.Substring(valStart+1,valEnd-(valStart+1));
+            var valueCollection=rgx.Matches(valuesString).Select(e=>e.Index+3).OrderBy(e=>e).ToArray();
+
+            var values=new List<string>(valueCollection.Length);
+            if(valueCollection.Length>0){
+                values.Add(valuesString.Substring(0,valueCollection[0]-3));
+            }
+              if(valueCollection.Length>2){
+
+                var index=0;
+                while(index<(valueCollection.Length-1)){
+                    var row=valuesString.Substring(valueCollection[index],(valueCollection[index+1]-3)- index);
+                    values.Add(row);                   
+                    index++;
+                }
+              }
 
             var entry = new Dictionary<string, object>();
 
