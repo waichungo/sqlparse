@@ -26,29 +26,135 @@ void Start()
 List<string> ParseSQLValues(string valueString)
 {
     var values = new List<string>();
-    bool canSplit = true;
-    var prevIndex = 0;
-    char currChar = ' ';
-    var fieldStarts = new Regex(@"(?<!')'(?!')").Matches(valueString).Select(e => e.Index + 1).OrderBy(e => e).ToArray();
-    for (int i = 1; i < valueString.Length; i++)
-    {
-        currChar = valueString[i];
-        if (currChar == ',')
-        {
-            if (canSplit)
-            {
-                values.Add(valueString.Substring(prevIndex, i - prevIndex));
-                prevIndex = i + 1;
-                continue;
+    // var values = new List<string>();
+    var escapedQuotes = new Regex(@"\\+'", RegexOptions.Multiline).Matches(valueString).Select(e => e.Index + e.Value.Length).ToList();
 
-            }
-        }
-        if (currChar == '\'')
+    var startQuotes = new Regex(@"'", RegexOptions.Multiline).Matches(valueString).Select(e => e.Index).Where(e =>
         {
-            canSplit =  fieldStarts.Any(e => !(e > prevIndex && e < i));
-        }
+            // {
+            //     //,'',
+            //     var emptyStart = e - 3;
+            //     var emptyEnd = e + 2;
+            //     if (emptyStart >= 0 && valueString.Length > emptyEnd)
+            //     {
+            //         var sub = valueString.Substring(emptyStart, 5);
+            //         if (Regex.IsMatch(sub, @",'',"))
+            //         {
+            //             return true;
+            //         }
+            //     }
+
+            // }
+            var prevIdx = e - 1;
+            if (prevIdx >= 0)
+            {
+                if (valueString[prevIdx] == '\'' || valueString[prevIdx] == '\\')
+                {
+                    // var prevIdx2 = prevIdx - 1;
+                    // if (prevIdx2 >= 0)
+                    // {
+                    //     if (valueString[prevIdx2] == '\\')
+                    //     {
+                    //         return false;
+                    //     }
+                    // }
+                    return false;
+                }
+            }
+            var nextIdx = e + 1;
+            if (nextIdx < valueString.Length)
+            {
+                return valueString[nextIdx] != '\'';
+            }
+            return true;
+        }).OrderBy(e => e).ToArray();
+    if (escapedQuotes.Count > 0)
+    {
+        startQuotes = startQuotes.Where(e => !escapedQuotes.Contains(e)).ToArray();
+    }
+    var quotePairs = new Dictionary<int, int>(startQuotes.Length / 2);
+    if (startQuotes.Length % 2 != 0)
+    {
+        Console.WriteLine("Not even");
+        return values;
     }
 
+    for (int i = 0; i < startQuotes.Length; i += 2)
+    {
+        quotePairs.Add(startQuotes[i], startQuotes[i + 1]);
+    }
+    var fieldStarts = new Regex(@",", RegexOptions.Multiline).Matches(valueString).Select(e => e.Index + 1).Where(e =>
+    {
+        var idx = e - 1;
+        if (quotePairs.Any(pair => idx > pair.Key && idx < pair.Value))
+        {
+            return false;
+        }
+        var prevIdx = e - 2;
+        if (prevIdx >= 0)
+        {
+            if (valueString[prevIdx] == ',')
+            {
+                return false;
+            }
+        }
+        if (e < valueString.Length)
+        {
+            return valueString[e] != ',';
+        }
+        return true;
+    }).OrderBy(e => e).ToArray();
+
+
+    if (fieldStarts.Length > 0)
+    {
+        values.Add(valueString.Substring(0, fieldStarts[0] - 1));
+    }
+    if (fieldStarts.Length > 1)
+    {
+        for (int i = 1; i < fieldStarts.Length; i++)
+        {
+            values.Add(valueString.Substring(fieldStarts[i - 1], (fieldStarts[i] - 1) - fieldStarts[i - 1]));
+
+        }
+    }
+    values.Add(valueString.Substring(fieldStarts[fieldStarts.Length - 1], valueString.Length - fieldStarts[fieldStarts.Length - 1]));
+    // var currVal = "";
+    // bool append = false;
+    // foreach (var item in tempvalues)
+    // {
+    //     if (!append)
+    //     {
+    //         if (Regex.IsMatch(item, @"^'.*'$"))
+    //         {
+    //             values.Add(item);
+    //         }
+    //         else if (long.TryParse(item, out long result))
+    //         {
+    //             values.Add(item);
+    //         }
+    //         else
+    //         {
+    //             append = true;
+    //         }
+    //     }
+    //     if (append)
+    //     {
+    //         currVal += item;
+    //         append = Regex.IsMatch(item, @"'$");
+    //         if (!append)
+    //         {
+    //             values.Add(currVal);
+    //             currVal = "";
+    //         }
+
+    //     }
+
+    // }
+    // if (currVal.Length > 0)
+    // {
+    //     values.Add(currVal);
+    // }
     return values;
 }
 void ParseSQL()
