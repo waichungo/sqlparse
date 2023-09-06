@@ -23,6 +23,7 @@ void Start()
 
     }
 }
+
 List<string> ParseSQLValues(string valueString)
 {
     var values = new List<string>();
@@ -30,34 +31,13 @@ List<string> ParseSQLValues(string valueString)
     var escapedQuotes = new Regex(@"\\+'", RegexOptions.Multiline).Matches(valueString).Select(e => e.Index + e.Value.Length).ToList();
 
     var startQuotes = new Regex(@"'", RegexOptions.Multiline).Matches(valueString).Select(e => e.Index).Where(e =>
-        {
-            // {
-            //     //,'',
-            //     var emptyStart = e - 3;
-            //     var emptyEnd = e + 2;
-            //     if (emptyStart >= 0 && valueString.Length > emptyEnd)
-            //     {
-            //         var sub = valueString.Substring(emptyStart, 5);
-            //         if (Regex.IsMatch(sub, @",'',"))
-            //         {
-            //             return true;
-            //         }
-            //     }
-
-            // }
+        {            
             var prevIdx = e - 1;
             if (prevIdx >= 0)
             {
                 if (valueString[prevIdx] == '\'' || valueString[prevIdx] == '\\')
                 {
-                    // var prevIdx2 = prevIdx - 1;
-                    // if (prevIdx2 >= 0)
-                    // {
-                    //     if (valueString[prevIdx2] == '\\')
-                    //     {
-                    //         return false;
-                    //     }
-                    // }
+                    
                     return false;
                 }
             }
@@ -119,42 +99,7 @@ List<string> ParseSQLValues(string valueString)
         }
     }
     values.Add(valueString.Substring(fieldStarts[fieldStarts.Length - 1], valueString.Length - fieldStarts[fieldStarts.Length - 1]));
-    // var currVal = "";
-    // bool append = false;
-    // foreach (var item in tempvalues)
-    // {
-    //     if (!append)
-    //     {
-    //         if (Regex.IsMatch(item, @"^'.*'$"))
-    //         {
-    //             values.Add(item);
-    //         }
-    //         else if (long.TryParse(item, out long result))
-    //         {
-    //             values.Add(item);
-    //         }
-    //         else
-    //         {
-    //             append = true;
-    //         }
-    //     }
-    //     if (append)
-    //     {
-    //         currVal += item;
-    //         append = Regex.IsMatch(item, @"'$");
-    //         if (!append)
-    //         {
-    //             values.Add(currVal);
-    //             currVal = "";
-    //         }
-
-    //     }
-
-    // }
-    // if (currVal.Length > 0)
-    // {
-    //     values.Add(currVal);
-    // }
+    
     return values;
 }
 void ParseSQL()
@@ -163,15 +108,16 @@ void ParseSQL()
     using var stream = new StreamReader(file);
     var line = "";
 
-    var parsed = new KeyValuePair<string, Dictionary<string, object>>();
+    Bag parsed = new Bag();
     var table = "";
     var rgx = new Regex(@"\),\(\d+,");
+    var lineCounter = 0;
     while ((line = stream.ReadLine()) != null)
     {
         //INSERT INTO `updated` () VALUES ()
         if (line.StartsWith("INSERT INTO"))
         {
-
+            lineCounter++;
             var tableStart = line.IndexOf('`');
             var tableEnd = line.IndexOf('`', tableStart + 1);
 
@@ -239,13 +185,13 @@ void ParseSQL()
                         entry.Add(key, val);
                     }
 
-                    parsed = new KeyValuePair<string, Dictionary<string, object>>(table, entry);
+                    parsed = new Bag{TableName= table,Data= entry};
 
                     var jsnline = JsonSerializer.Serialize(parsed, new JsonSerializerOptions
                     {
-                        WriteIndented = true
+                        // WriteIndented = true
                     });
-                    File.AppendAllText("parse.txt", jsnline + Environment.NewLine + Environment.NewLine);
+                    File.AppendAllText("parse.txt", jsnline + Environment.NewLine);
 
 
                 }
@@ -256,8 +202,12 @@ void ParseSQL()
             }
 
 
-
+            Console.WriteLine($"Parsed {lineCounter} lines");
 
         }
     }
+}
+public class Bag{
+    public string TableName{get;set;}="";
+    public Dictionary<string,object> Data{get;set;}=new();
 }
